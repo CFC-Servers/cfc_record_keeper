@@ -18,7 +18,7 @@ def decode_record(record):
     return raw
 
 def lambda_handler(event, context):
-    data = event.get("body")
+    data = json.loads(event["body"])
 
     name = data.get("name", "unknown-name")
     record = decode_record(data["compress"])
