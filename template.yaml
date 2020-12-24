@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  CFC Record Keeper
+  It keeps records
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: python3.8
+
+Resources:
+  CFCRecordKeeperApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        DefaultAuthorizer: RecordKeeperRequestAuthorizer
+        Authorizers:
+          RecordKeeperRequestAuthorizer:
+            FunctionArn: !GetAtt CFCRecordKeeperAuthFunction.Arn
+            AuthorizerPayloadFormatVersion: 2.0
+            EnableSimpleResponses: true
+            Identity:
+              Headers:
+                - Authorization
+
+  RecordLake:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: CFC-RECORD-KEEPER
+
+  # Auth
+  CFCRecordKeeperAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/auth/
+      Handler: authorizer.handler
+      Environment:
+        Variables:
+          JSON_ENV: !Ref RecordKeeperAuthJsonEnv
+          RECORD_BUCKET: !GetAtt RecordLake.
+
+  # Restart
+  CFCStoreRecord:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/store_record/
+      Handler: app.lambda_handler
+      Events:
+        CFCStoreRecord:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CFCRecordKeeperApi
+            Method: POST
+            RouteSettings:
+              Path: /store-record
