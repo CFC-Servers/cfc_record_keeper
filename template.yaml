@@ -45,8 +45,24 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       BucketName: cfc-record-keeper
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
 
-  # Restart
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+      LifecycleConfiguration:
+        Rules:
+          - Id: RecordExpirationRule
+            Status: Enabled
+            ExpirationInDays: 60
+
+  # Store Record
   CFCStoreRecord:
     Type: AWS::Serverless::Function
     Properties:
@@ -59,3 +75,17 @@ Resources:
             ApiId: !Ref CFCRecordKeeperApi
             Method: POST
             Path: /store-record
+      Policies:
+        - Statement:
+          - Sid: RecordKeeperWriteRecordPolicy
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:PutLifecycleConfiguration
+              - s3:AbortMultipartUpload
+            Resource: !Join
+              - ''
+              -
+                - !GetAtt RecordLake.Arn
+                - /*
