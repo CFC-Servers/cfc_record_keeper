@@ -2,9 +2,9 @@ version = 0.1
 [default]
 [default.deploy]
 [default.deploy.parameters]
-stack_name = "cfc-nanny-app"
+stack_name = "cfc-record-keeper"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1mv8ngeobrljz"
-s3_prefix = "cfc-nanny-app"
+s3_prefix = "cfc-record-keeper"
 region = "us-east-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
