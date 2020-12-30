@@ -21,7 +21,7 @@ def decode_record(record):
 def lambda_handler(event, context):
     data = json.loads(event["body"])
 
-    name = data.get("name", "unknown-name")
+    name = data.get("name", "unknown-name").upper()
     record = decode_record(data["compress"])
     realm = data.get("realm", "unknown-realm")
     spawn_time = data.get("spawnTime", round(time.time()))
