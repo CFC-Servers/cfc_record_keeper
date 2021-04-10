@@ -27,7 +27,7 @@ def lambda_handler(event, context):
     spawn_time = data.get("spawnTime", round(time.time()))
     owner_steam_id = data.get("owner", "unattributed").lower()
 
-    save_path = f"records/{realm}/{owner_steam_id}/{name}-{spawn_time}.txt"
+    save_path = f"records/{realm}/{owner_steam_id}/{spawn_time}-{name}.txt"
     print(f"Saving {save_path}")
 
     s3_client.put_object(Body=record, Bucket="cfc-record-keeper", Key=save_path)
