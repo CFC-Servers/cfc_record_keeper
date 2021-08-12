@@ -24,10 +24,10 @@ def lambda_handler(event, context):
     record = data.get("record", {})
     realm = data.get("realm", "unknown-realm")
 
-    name = data.get("name", "unknown-name").upper()
-    decoded_record_data = decode_record(data["compress"])
-    spawn_time = data.get("spawnTime", round(time.time()))
-    owner_steam_id = data.get("owner", "unattributed").lower()
+    name = record.get("name", "unknown-name").upper()
+    decoded_record_data = decode_record(record["compress"])
+    spawn_time = record.get("spawnTime", round(time.time()))
+    owner_steam_id = record.get("owner", "unattributed").lower()
 
     save_path = f"records/{realm}/{owner_steam_id}/{spawn_time}-{name}.txt"
     print(f"Saving {save_path}")
