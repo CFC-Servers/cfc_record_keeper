@@ -33,11 +33,11 @@ def decode_record(record):
 def lambda_handler(event, context):
     data = json.loads(event["body"])
     records = data.get("records", [])
+    realm = data.get("realm", "unknown-realm")
 
     for record in records:
         name = record.get("name", "unknown-name")
         code = decode_record(record["compress"])
-        realm = record.get("realm", "unknown-realm")
         spawn_time = record.get("spawnTime", round(time.time()))
         owner_steam_id = record.get("owner", "unattributed")
         includes = record.get("includes")
