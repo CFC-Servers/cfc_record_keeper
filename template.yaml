@@ -77,15 +77,64 @@ Resources:
             Path: /store-record
       Policies:
         - Statement:
-          - Sid: RecordKeeperWriteRecordPolicy
-            Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:PutObjectAcl
-              - s3:PutLifecycleConfiguration
-              - s3:AbortMultipartUpload
-            Resource: !Join
-              - ''
-              -
-                - !GetAtt RecordLake.Arn
-                - /*
+            - Sid: RecordKeeperWriteRecordPolicy
+              Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+                - s3:PutLifecycleConfiguration
+                - s3:AbortMultipartUpload
+              Resource: !Join
+                - ''
+                -
+                  - !GetAtt RecordLake.Arn
+                  - /*
+
+  # Store Records
+  CFCStoreRecords:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/store_records/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          CFCRecordTopic: !Ref CFCRecordTopic
+      Events:
+        CFCStoreRecords:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CFCRecordKeeperApi
+            Method: POST
+            Path: /store-records
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt CFCRecordTopic.TopicName
+
+  # Save Records
+  CFCSaveRecords:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/save_records/
+      Handler: app.lambda_handler
+      Events:
+        CFCSaveRecord:
+          Type: SNS
+          Properties:
+            Topic: !Ref CFCRecordTopic
+      Policies:
+        - Statement:
+            - Sid: RecordKeeperWriteRecordsPolicy
+              Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+                - s3:PutLifecycleConfiguration
+                - s3:AbortMultipartUpload
+              Resource: !Join
+                - ''
+                -
+                  - !GetAtt RecordLake.Arn
+                  - /*
+
+  CFCRecordTopic:
+    Type: AWS::SNS::Topic

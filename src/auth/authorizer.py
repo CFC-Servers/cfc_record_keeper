@@ -1,25 +1,30 @@
-import json
-import os
+from os import getenv
+from json import loads
 from json.decoder import JSONDecodeError
 
+
 def is_authorized(authorized):
-    return { "isAuthorized": authorized }
+    return {"isAuthorized": authorized}
+
 
 def deny():
     return is_authorized(False)
 
+
 def accept():
     return is_authorized(True)
+
 
 def get_env(env_name):
     auth_config = {}
     try:
-        if auth_config_string := os.getenv("JSON_ENV"):
-            auth_config = json.loads(auth_config_string)
-    except:
+        if auth_config_string := getenv("JSON_ENV"):
+            auth_config = loads(auth_config_string)
+    except Exception as e:
         pass
 
-    return os.getenv(env_name) or auth_config.get(env_name, None)
+    return getenv(env_name) or auth_config.get(env_name, None)
+
 
 def get_allowed_keys(route):
     route = route.replace("/", "")
@@ -44,6 +49,7 @@ def get_allowed_keys(route):
 
     return allowed_keys
 
+
 def handler(event, context):
     key = event.get("headers", {}).get("authorization", None)
 
@@ -60,7 +66,7 @@ def handler(event, context):
     allowed_keys = get_allowed_keys(route)
 
     if allowed_keys is None:
-        print("Couldn't find any allowed keys for given route, '{}'. Denying.".format(route))
+        print(f"Couldn't find any allowed keys for given route, '{route}'. Denying.")
         return deny()
 
     is_authorized = key in allowed_keys
