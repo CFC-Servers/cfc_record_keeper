@@ -40,6 +40,7 @@ Resources:
         Variables:
           JSON_ENV: !Ref RecordKeeperAuthJsonEnv
 
+  # Record Storage
   RecordLake:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -60,37 +61,9 @@ Resources:
         Rules:
           - Id: RecordExpirationRule
             Status: Enabled
-            ExpirationInDays: 60
+            ExpirationInDays: 21
 
-  # Store Record
-  CFCStoreRecord:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/store_record/
-      Handler: app.lambda_handler
-      Events:
-        CFCStoreRecord:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref CFCRecordKeeperApi
-            Method: POST
-            Path: /store-record
-      Policies:
-        - Statement:
-            - Sid: RecordKeeperWriteRecordPolicy
-              Effect: Allow
-              Action:
-                - s3:PutObject
-                - s3:PutObjectAcl
-                - s3:PutLifecycleConfiguration
-                - s3:AbortMultipartUpload
-              Resource: !Join
-                - ''
-                -
-                  - !GetAtt RecordLake.Arn
-                  - /*
-
-  # Store Records
+  # Bulk Store Records (Triggered by API call)
   CFCStoreRecords:
     Type: AWS::Serverless::Function
     Properties:
@@ -110,7 +83,7 @@ Resources:
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt CFCRecordTopic.TopicName
 
-  # Save Records
+  # Bulk Save Records (Triggered by SNS)
   CFCSaveRecords:
     Type: AWS::Serverless::Function
     Properties:
@@ -136,5 +109,79 @@ Resources:
                   - !GetAtt RecordLake.Arn
                   - /*
 
+  # Storage for CloudTrail Access watcher
+  CFCRecordAccessLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: cfc-record-keeper-access-logs
+
+  CFCRecordAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+
+  CFCRecordAccessLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+
+  CFCRecordAccessLogsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CFCRecordAccessLogsCloudTrailCreate
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutLogEvent
+              - logs:CreateLogStream
+            Effect: Allow
+            Resource: !GetAtt CFCRecordAccessLogGroup.Arn
+      Roles:
+        - !Ref CFCRecordAccessLogsRole
+
+  # CloudTrail watching for Access Events
+  CFCRecordAccessTrail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn:
+      - CFCRecordAccessLogs
+      - CFCRecordAccessLogsRole
+      - CFCRecordAccessLogsPolicy
+    Properties:
+      IsLogging: true
+      TrailName: CFCRecordAccessTrail
+      CloudWatchLogsLogGroupArn: !GetAtt CFCRecordAccessLogGroup.Arn
+      CloudWatchLogsRoleArn: !GetAtt CFCRecordAccessLogsRole.Arn
+      SnsTopicName: !GetAtt CFCRecordAccessTopic.TopicName
+      S3BucketName: !Ref CFCRecordAccessLogs
+      EventSelectors:
+        - DataResources:
+            - Type: AWS::S3::Object
+              Values:
+                - !GetAtt RecordLake.Arn
+          IncludeManagementEvents: true
+          ReadWriteType: ReadOnly
+
+  # Function to parse the Access Events
+  CFCRecordAccessRelay:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/read_relay/
+      Handler: app.lambda_handler
+      Events:
+        CFCRelayAccessEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref CFCRecordAccessTopic
+
+  # SNS Topic to trigger saving
   CFCRecordTopic:
+    Type: AWS::SNS::Topic
+
+  # SNS Topic to trigger access alerts
+  CFCRecordAccessTopic:
     Type: AWS::SNS::Topic
